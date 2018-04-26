@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>HybPSO</title>
+
+    <style>
+        #output {
+            text-align: center;
+            visibility: hidden;
+        }
+
+        #animatedshapes_div {
+            margin: 0 auto;
+            width: 500px;
+            height: 500px;
+        }
+    </style>
+
 </head>
 
 <body>
@@ -29,10 +43,13 @@
     </select>
 
     <button onclick="init(document.getElementById('benchmarkNum').value)">Procura</button>
-    <div id="animatedshapes_div" style="width: 500px; height: 500px;"></div>
-
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script src="./js/hybpso.js"></script>
+    <div id="output">
+        Distância: <span id="distance"></span>
+        <div id="animatedshapes_div"></div>
+    </div>
+        
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script src="./js/hybpso.js"></script>
 </body>
 
 </html>
