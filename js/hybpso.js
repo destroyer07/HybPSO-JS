@@ -126,7 +126,7 @@ function readBenchmark(benchmark, cb) {
     );
 }
 
-function evaluateFitness(bench, route, ret) {
+function evaluateFitness(bench, route) {
     // Distância percorrida
     var distance = bench.distances[0][route[0]];
     // Capacidade restante no veículo
@@ -134,9 +134,10 @@ function evaluateFitness(bench, route, ret) {
 
     var i;
     for (i = 1; i < bench.customersQtd; i++) {
+        
         // Soma à carga atual do veículo o valor requerido pelo cliente
         load += bench.customers[route[i]].request;
-        if (ret) ret.push([route[i], bench.customers[route[i]].request, load]);
+
         // Se o veículo chegou à sua carga máxima
         if (load >= bench.vehicleCapacity) {
             // Adiciona distância de ida até o depósito (zero)
@@ -145,8 +146,7 @@ function evaluateFitness(bench, route, ret) {
             distance += bench.distances[0][route[i]];
             
             // Zera a carga do veículo
-            load = 0;
-            i--;
+            load = bench.customers[route[i]].request;
         } else {
             // Se o veículo suporta mais carga, continua o cálculo
             distance += bench.distances[route[i - 1]][route[i]];
@@ -343,8 +343,6 @@ function mpnsGrasp(bench, populationSize, rclD) {
     // Aloca o array da população
     var population = Array(populationSize);
 
-    console.log(bench);
-
     // Número de arestas existentes no array de distâncias ordenadas
     var availableEdges = bench.ordenatedDistances.length;
 
@@ -450,29 +448,33 @@ function updateFitness(bench, particle, index, oldNode) {
 
 function pathRelinking(bench, particle, aim) {
     var fitness = particle.fitness;
-
+    var particleRoute = particle.routeDiscrete.slice();
     
     for (var i = 0; i < bench.customersQtd; i++) {
-        
-        // Para o path relinking se encontrou uma rota melhor que a atual
-        if (particle.fitness < fitness) {
-            break;
-        }
 
         // Encontra a posição do nó na melhor rota
-        var j = aim.findIndex((e, t) => e == particle.routeDiscrete[i]);
+        var j = aim.findIndex((e, t) => e == particleRoute[i]);
         
+        // Só calcula se os nós não estiverem na mesma posição nas duas rotas
         if (i == j) continue;
         
         // Troca os nós entre as duas posições
-        var tmp = particle.routeDiscrete[i];
-        particle.routeDiscrete[i] = particle.routeDiscrete[j];
-        particle.routeDiscrete[j] = tmp;
+        var tmp = particleRoute[i];
+        particleRoute[i] = particleRoute[j];
+        particleRoute[j] = tmp;
         
-        // Atualiza o fitness sem recalcular para a rota inteira,
-        // somente recalculando nos nós alterados
-        updateFitness(bench, particle, i, particle.routeDiscrete[j]);
-        updateFitness(bench, particle, j, particle.routeDiscrete[i]);
+        // Atualiza o fitness da particula
+        fitness = evaluateFitness(bench, particleRoute);
+
+        // Retorna se encontrou uma rota melhor que a atual
+        if (fitness < particle.fitness) {
+            // console.log("Path relinking !!!");
+            particle.routeDiscrete = particleRoute.slice();
+            particle.fitness = fitness;
+            particle.route = particleRoute;
+            toContinuos(bench, particle.route);
+            break;
+        }
     }
 }
 
@@ -483,18 +485,27 @@ function updateBests(bench, particle, bestParticle) {
         particle.best.routeDiscrete = particle.routeDiscrete.slice();
         particle.best.route         = particle.route.slice();
         particle.best.fitness       = particle.fitness;
-
+        console.log("--->", particle.best.fitness);
         // Atualiza o melhor resultado global
         if (particle.best.fitness < bestParticle.fitness) {
             bestParticle.routeDiscrete  = particle.best.routeDiscrete.slice();
             bestParticle.route          = particle.best.route.slice();
             bestParticle.fitness        = particle.best.fitness;
+            console.log("------>", bestParticle);
         }
     }
 }
 
 function initPso(bench, population, bestParticle, params) {
+    
+    bestParticle.fitness = Number.MAX_VALUE;
+
+    var bestPosition = -1;
+
     for (var i = 0; i < params.particles; i++) {
+
+        // Calcula o fitness para a partícula
+        population[i].fitness = evaluateFitness(bench, population[i].route);
 
         // Cria rota contínua para a partícula i
         population[i].routeDiscrete = population[i].route.slice();
@@ -512,11 +523,17 @@ function initPso(bench, population, bestParticle, params) {
             route: population[i].route.slice(),
             fitness: population[i].fitness
         }
+
+        // Guarda a partícula de melhor valor
+        if (bestParticle.fitness > population[i].fitness) {
+            bestParticle.fitness = population[i].fitness;
+            bestPosition = i;
+        }
     }
 
-    // Cria rota contínua para a melhor partícula global
-    bestParticle.routeDiscrete = bestParticle.route.slice();
-    toContinuos(bench, bestParticle.route);
+    // Guarda dados da melhor partícula global
+    bestParticle.route = population[bestPosition].route.slice();
+    bestParticle.routeDiscrete = population[bestPosition].routeDiscrete.slice();
 }
 
 function diferentArrays(a , b) {
@@ -528,11 +545,13 @@ function diferentArrays(a , b) {
     return false;
 }
 
-function pso(bench, population, bestParticle, params) {
+function pso(bench, population, params) {
 
+    var bestParticle = {};
+    // Inicializa variáveis do PSO
     initPso(bench, population, bestParticle, params);
 
-    console.log(population, "->" + bestParticle.fitness);
+    // console.log(population[0].fitness, population[1].fitness, "->" + bestParticle.fitness);
 
     // Itera até o número máximo de gerações
     for (var t = 0; t < params.generations; t++) {
@@ -550,7 +569,7 @@ function pso(bench, population, bestParticle, params) {
             var vel = particle.velocities;
 
             // Itera por todos os nós da rota
-            for (var i = 1; i < bench.customersQtd; i++) {
+            for (var i = 0; i < bench.customersQtd; i++) {
                 // Calcula a velocidade
                 vel[i] = w * vel[i];
                 vel[i] += params.c1 * Math.random() * (best[i] - route[i]);       
@@ -560,8 +579,13 @@ function pso(bench, population, bestParticle, params) {
                 particle.route[i] += vel[i];
             }
 
+            // console.log(particle.route.map(e => e + ", "), particle.routeDiscrete.map(e => e + ", "));
+            
             // Converte a rota de volta para o espaço discreto
             toDiscrete(bench, particle);
+
+            // console.log(particle.route.map(e => e + ", "), particle.routeDiscrete.map(e => e + ", "));
+
 
             // Recalcula o fitness da partícula
             particle.fitness = evaluateFitness(bench, particle.routeDiscrete);
@@ -580,21 +604,31 @@ function pso(bench, population, bestParticle, params) {
             // Atualiza as melhores partículas locais e a global
             updateBests(bench, particle, bestParticle);
 
-            console.log(particle.fitness, particle.best.fitness, bestParticle.fitness);
+            // console.log(population.)
+            // console.log(particle.fitness, particle.best.fitness, bestParticle.fitness);
         });
 
     }
-    console.log(population);
-    console.log(bestParticle);
 
     return bestParticle;
+}
+
+function hybPSO(bench, params) {
+    // Gera população inicial
+    var population = mpnsGrasp(bench, params.particles, params.rclD);
+
+    // Calcula melhor rota pelo PSO
+    var best = pso(bench, population, params);
+
+
+    return best;
 }
 
 function readParams() {
     return {
         swarms: 1,
-        particles: 2,
-        generations: 20,
+        particles: 20,
+        generations: 500,
         c1: 2,
         c2: 2,
         wMin: 0.01,
@@ -608,41 +642,31 @@ function init(benchmark) {
     var params = readParams();
 
     readBenchmark(benchmark, bench => {
-
-        if (bench.customersQtd < 50)
+        
+        var bestOfBests = { fitness: Number.MAX_VALUE };
+        
+        if (bench.customersQtd < 50) {
             params.rclD = parseInt(bench.customersQtd / 2);
-
-        var population = mpnsGrasp(bench, params.particles, params.rclD);
-
-        var bestParticle = {
-            fitness: Number.MAX_VALUE
         }
 
-        // Calcula o fitness de cada partícula e guarda a de melhor valor
-        population.map((particle, i) => {
-            particle.fitness =
-                evaluateFitness(bench, particle.route)
-            if (bestParticle.fitness > particle.fitness) {
-                bestParticle.fitness = particle.fitness;
-                bestParticle.route = particle.route.slice();
-            }
-        });
+        for (var i = 0; i < 1; i++) {
+            
+            var best = hybPSO(bench, params);
 
-        var best = pso(bench, population, bestParticle, params);
+            if (best.fitness < bestOfBests.fitness)
+                bestOfBests = best;
+        }
 
-
-        var ret1 = [], ret2 = [];
-        var aa = evaluateFitness(bench, best.routeDiscrete, ret1);
-        insertDepotReturns(bench, best.routeDiscrete, ret2);
-        console.log(ret1, ret2, aa);
-        plotGraph(bench, best.routeDiscrete);
+        var aa = evaluateFitness(bench, bestOfBests.routeDiscrete);
+        insertDepotReturns(bench, bestOfBests.routeDiscrete);
+        plotGraph(bench, bestOfBests.routeDiscrete);
     });
 }
 
 
-function insertDepotReturns(bench, route, ret) {
+function insertDepotReturns(bench, route) {
     // Rota contendo retornos ao depósito
-    completeRoute = [0].concat(route);
+    var completeRoute = [0].concat(route);
     // Carga no veículo
     var load = 0;
 
@@ -658,7 +682,6 @@ function insertDepotReturns(bench, route, ret) {
             // Zera a carga do veículo
             load = 0;
         }
-        if (ret) ret.push([completeRoute[i], bench.customers[completeRoute[i]].request, load]);
     }
 
     // Adiciona depósito à ultima posição da rota
