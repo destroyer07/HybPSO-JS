@@ -314,18 +314,8 @@ function addEdge(bench, disjointSet, edge) {
         rootA = aux;
     }
 
-
+    // Une dois grupos de arestas com a menor rota possível
     minimumCostSubroute(bench, disjointSet, disjointSet.roots[rootA], disjointSet.roots[rootB], pointA, pointB);
-    
-    disjointSet.roots[rootA].map(e1 => {
-        disjointSet.roots[rootB].map(e2 => {
-            if (e1 == e2) {
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log(e1, e2);
-                console.log(disjointSet.roots[rootA], disjointSet.roots[rootB]);
-            }
-        });
-    });
 
     // Adiciona as folhas de B às folhas de A
     disjointSet.roots[rootA] = disjointSet.roots[rootA].concat(disjointSet.roots[rootB]);
@@ -336,6 +326,105 @@ function addEdge(bench, disjointSet, edge) {
     // Remove raíz de B da lista de raízes
     disjointSet.roots[rootB] = null;
     disjointSet.rootsQtd--;
+}
+
+function getEdgesFomRoute(bench, route) {
+
+    // Monta primeira aresta
+    var edges = [ {
+        a: 0,
+        b: route[0],
+        distance: bench.distances[0][route[0]]
+     } ];
+
+    // Monta restante das arestas
+    for (var i = 1; i < bench.customersQtd; i++) {
+        edges.push({
+            a: route[i - 1],
+            b: route[i],
+            distance: bench.distances[route[i-1]][route[i]]
+        });
+    }
+
+    // Monta última aresta
+    edges.push({
+        a: 0,
+        b: route[0],
+        distance: bench.distances[route[i-1]][0]
+    });
+
+    // Retorna array de arestas
+    return edges;
+}
+
+function insideRadius(bench, a, b, edge, radius) {
+    return euclidianDistance(bench.customers[a], bench.customers[edge.a]) < radius
+        && euclidianDistance(bench.customers[a], bench.customers[edge.b]) < radius
+        && euclidianDistance(bench.customers[b], bench.customers[edge.a]) < radius
+        && euclidianDistance(bench.customers[b], bench.customers[edge.b]) < radius;
+}
+
+function circleRestrictedLocalSearch(bench, route, A, radius) {
+
+    var restrictedEdges = [];
+
+    if (insideRadius(bench, 0, route[0], A, radius)) {
+        restrictedEdges = {
+            a: 0,
+            b: route[0],
+            distance: bench.distances[route[i-1]][0]
+        };
+    }
+
+
+    for (var i = 0; i < bench.customersQtd; i++) {
+
+        if (bench.distances[route[i]]) {
+
+        }
+    }
+}
+
+function multiplePhaseNeighborhoodSearch(bench, route) {
+    
+    // Monta lista de array ordenada da maior para a menor
+    // var edges = getEdgesFomRoute(bench, route).sort((e1, e2) => e1.distance < e2.distance);
+    
+    // Pega maior aresta
+    // var A = edges.shift();
+
+    // Raio do circulo de busca
+    // var circleRadius = A.distance / 2;
+
+    var bestRoute = {
+        route: route.slice(),
+        fitness: evaluateFitness(bench, route)
+    }
+
+    for (var i = 0; i < bench.customersQtd; i++) {
+        for (var j = 0; j < bench.customersQtd; j++) {
+
+            // Escolhe as arestas dentro do raio de busca
+            // circleRestrictedLocalSearch(bench, route, A, circleRadius);
+            
+            if (i == j) continue;
+
+            var tmpRoute = route.slice();
+
+            var tmp = tmpRoute[j];
+            tmpRoute[j] = tmpRoute[i];
+            tmpRoute[i] = tmp;
+
+            var fitness = evaluateFitness(bench, tmpRoute);
+
+            if (fitness < bestRoute.fitness) {
+                bestRoute.route = tmpRoute;
+                bestRoute.fitness = fitness;
+            }
+        }
+    }
+
+    route = bestRoute.route;
 }
 
 function mpnsGrasp(bench, populationSize, rclD) {
@@ -390,9 +479,7 @@ function mpnsGrasp(bench, populationSize, rclD) {
             }
         }
 
-        // ###############################
-        // Aplicar a busca local aqui
-        // ###############################
+        //multiplePhaseNeighborhoodSearch(bench, route);
         
         // Guarda a nova partícula construída
         population[particle] =  {
@@ -450,10 +537,12 @@ function pathRelinking(bench, particle, aim) {
     var fitness = particle.fitness;
     var particleRoute = particle.routeDiscrete.slice();
     
-    for (var i = 0; i < bench.customersQtd; i++) {
+    for (var count = 0; count < bench.customersQtd; count++) {
+
+        var i = randomIntLessThan(bench.customersQtd);
 
         // Encontra a posição do nó na melhor rota
-        var j = aim.findIndex((e, t) => e == particleRoute[i]);
+        var j = aim.routeDiscrete.findIndex((e, t) => e == particleRoute[i]);
         
         // Só calcula se os nós não estiverem na mesma posição nas duas rotas
         if (i == j) continue;
@@ -466,9 +555,9 @@ function pathRelinking(bench, particle, aim) {
         // Atualiza o fitness da particula
         fitness = evaluateFitness(bench, particleRoute);
 
-        // Retorna se encontrou uma rota melhor que a atual
-        if (fitness < particle.fitness) {
-            // console.log("Path relinking !!!");
+        // Retorna se encontrou uma rota melhor que a alvo
+        if (fitness < aim.fitness) {
+            console.log("Path relinking !!!");
             particle.routeDiscrete = particleRoute.slice();
             particle.fitness = fitness;
             particle.route = particleRoute;
@@ -575,10 +664,17 @@ function pso(bench, population, params) {
                 vel[i] += params.c1 * Math.random() * (best[i] - route[i]);       
                 vel[i] += params.c2 * Math.random() * (bestParticle.route[i] - route[i]);
 
+                // var vel_min = -0.5;
+                // var vel_max = 0.5;
+
+                // if (vel[i] < vel_min) vel[i] = vel_min;
+                // else if (vel[i] > vel_max) vel[i] = vel_max;
+
                 // Calcula a nova posição dos nós
                 particle.route[i] += vel[i];
             }
 
+            //if (iPart == 0) { console.log(particle.velocities)}
             // if (iPart == 0) { console.log(particle.route, particle.best.route, particle.velocities); console.log(); console.log(); }
 
             // console.log(particle.route.map(e => e + ", "), particle.routeDiscrete.map(e => e + ", "));
@@ -595,12 +691,12 @@ function pso(bench, population, params) {
             particle.fitness = evaluateFitness(bench, particle.routeDiscrete);
 
             // Escolhe a partícula alvo do path relinking probabilisticamente
-            var probabilityToChooseBestGlobalParticle = 0.5;
+            var probabilityToChooseBestGlobalParticle = 0.8;
             var aim = Math.random() < probabilityToChooseBestGlobalParticle
-                ? bestParticle.routeDiscrete
-                : particle.best.routeDiscrete;
+                ? bestParticle
+                : particle.best;
 
-            if (!diferentArrays(aim, particle.routeDiscrete)) {
+            if (!diferentArrays(aim.routeDiscrete, particle.routeDiscrete)) {
                 // Faz o path relinking da partícula atual com a alvo escolhida
                 pathRelinking(bench, particle, aim);
             }
@@ -620,11 +716,11 @@ function pso(bench, population, params) {
 
 function hybPSO(bench, params) {
     // Gera população inicial
-    // var population = mpnsGrasp(bench, params.particles, params.rclD);
+    var population = mpnsGrasp(bench, params.particles, params.rclD);
 
     // console.log(JSON.stringify(population));
 
-    var population = [{"route":[47,12,37,44,42,40,19,41,13,17,4,18,25,14,6,24,43,23,7,48,27,8,26,31,28,36,35,3,22,1,32,11,38,9,50,16,2,20,29,21,34,30,39,33,45,15,10,49,5,46]},{"route":[1,22,8,26,31,28,3,36,35,20,16,2,29,21,50,34,30,39,10,49,9,5,38,11,32,27,48,7,23,43,24,6,14,25,13,40,42,19,41,18,47,4,17,44,45,33,15,37,12,46]},{"route":[37,15,45,44,17,4,18,41,19,42,40,13,25,14,6,23,24,43,7,26,8,48,1,22,31,28,3,36,35,20,2,29,21,34,30,39,33,10,49,38,9,50,16,11,32,27,46,5,12,47]},{"route":[24,14,25,18,4,47,12,17,19,41,13,40,42,44,45,33,15,37,5,49,10,39,30,34,21,50,9,38,11,16,29,35,36,3,20,2,1,22,28,31,8,26,7,43,23,48,6,27,32,46]},{"route":[11,2,20,36,35,29,16,50,21,34,30,39,10,49,9,38,5,33,45,15,37,44,42,40,19,41,13,17,4,47,12,46,32,1,22,3,28,31,8,26,48,7,23,43,24,25,18,14,6,27]},{"route":[6,14,25,24,43,23,7,48,27,1,22,32,8,26,31,28,3,36,35,20,2,16,29,21,34,50,9,30,39,10,49,5,38,11,12,37,15,33,45,44,17,42,19,40,41,13,4,18,47,46]},{"route":[47,17,37,15,33,45,44,42,19,40,41,13,4,18,25,14,6,24,43,23,7,26,31,28,22,3,36,35,20,2,29,16,50,21,34,30,39,10,49,9,5,38,11,32,1,8,48,27,46,12]},{"route":[46,27,48,6,14,25,24,43,23,7,26,31,8,1,32,11,38,16,2,22,28,36,35,3,20,29,21,50,9,34,30,39,10,49,5,37,15,33,45,44,42,40,13,41,19,17,12,47,4,18]},{"route":[6,48,8,31,26,23,7,43,24,14,25,18,4,13,41,40,19,42,44,45,33,15,37,17,47,12,5,49,10,39,30,50,34,21,29,2,16,9,38,11,32,22,28,3,36,35,20,1,27,46]},{"route":[6,14,25,24,43,23,7,48,27,32,1,22,8,26,31,28,3,36,35,20,2,11,38,16,29,21,50,34,30,39,10,9,49,5,12,37,15,33,45,44,42,40,13,41,19,17,4,18,47,46]},{"route":[27,6,14,25,24,43,7,23,48,8,26,31,28,3,36,35,20,22,1,32,11,2,29,21,16,9,50,34,30,39,10,49,38,5,33,45,15,44,42,19,40,41,13,37,17,4,18,47,12,46]},{"route":[46,6,24,43,23,7,26,8,48,27,1,32,11,38,9,16,2,22,3,28,31,36,35,20,29,21,50,34,30,49,5,10,39,33,15,45,44,42,19,40,41,13,37,17,12,47,4,18,25,14]},{"route":[27,48,8,26,31,28,3,36,35,20,22,1,32,11,38,16,50,2,29,21,34,30,39,10,9,49,5,37,15,33,45,44,17,12,47,4,18,41,19,42,40,13,25,14,24,43,23,7,6,46]},{"route":[27,6,14,25,24,43,23,7,48,8,26,31,28,3,36,35,20,29,21,34,30,39,10,49,9,50,16,38,5,11,2,1,22,32,12,17,37,15,33,45,44,42,19,40,41,13,4,18,47,46]},{"route":[27,6,48,23,24,43,7,8,26,31,28,3,36,35,20,1,22,2,29,16,50,21,34,30,39,10,49,9,38,11,32,46,12,5,33,45,15,44,37,17,4,18,41,19,42,40,13,25,14,47]},{"route":[47,14,25,13,40,42,19,41,18,4,17,44,45,33,15,37,5,9,50,49,10,39,30,34,21,29,2,16,38,11,12,46,32,1,22,20,35,36,3,28,31,26,8,48,7,23,43,24,6,27]},{"route":[46,38,11,9,50,16,2,32,1,22,3,36,35,20,29,21,34,30,39,10,49,5,12,37,15,33,45,44,42,40,19,41,13,17,4,18,47,25,14,6,24,43,23,7,26,31,28,8,48,27]},{"route":[27,6,23,24,43,7,48,26,31,8,22,1,32,11,38,9,50,16,2,3,28,36,35,20,29,21,34,30,39,10,49,5,46,12,37,15,33,45,44,42,40,19,17,4,41,13,25,14,18,47]},{"route":[46,12,37,15,33,45,44,17,4,18,47,42,19,40,41,13,25,14,6,24,43,23,7,26,31,8,48,27,32,1,22,28,3,36,35,20,2,11,38,9,16,29,21,50,34,30,39,10,49,5]},{"route":[46,47,18,4,13,41,40,19,42,17,44,45,33,15,37,12,5,49,38,11,32,16,50,9,10,39,30,34,21,29,2,20,35,36,3,22,28,31,26,8,7,23,43,24,25,14,48,1,27,6]}];
+    // var population = [{"route":[47,12,37,44,42,40,19,41,13,17,4,18,25,14,6,24,43,23,7,48,27,8,26,31,28,36,35,3,22,1,32,11,38,9,50,16,2,20,29,21,34,30,39,33,45,15,10,49,5,46]},{"route":[1,22,8,26,31,28,3,36,35,20,16,2,29,21,50,34,30,39,10,49,9,5,38,11,32,27,48,7,23,43,24,6,14,25,13,40,42,19,41,18,47,4,17,44,45,33,15,37,12,46]},{"route":[37,15,45,44,17,4,18,41,19,42,40,13,25,14,6,23,24,43,7,26,8,48,1,22,31,28,3,36,35,20,2,29,21,34,30,39,33,10,49,38,9,50,16,11,32,27,46,5,12,47]},{"route":[24,14,25,18,4,47,12,17,19,41,13,40,42,44,45,33,15,37,5,49,10,39,30,34,21,50,9,38,11,16,29,35,36,3,20,2,1,22,28,31,8,26,7,43,23,48,6,27,32,46]},{"route":[11,2,20,36,35,29,16,50,21,34,30,39,10,49,9,38,5,33,45,15,37,44,42,40,19,41,13,17,4,47,12,46,32,1,22,3,28,31,8,26,48,7,23,43,24,25,18,14,6,27]},{"route":[6,14,25,24,43,23,7,48,27,1,22,32,8,26,31,28,3,36,35,20,2,16,29,21,34,50,9,30,39,10,49,5,38,11,12,37,15,33,45,44,17,42,19,40,41,13,4,18,47,46]},{"route":[47,17,37,15,33,45,44,42,19,40,41,13,4,18,25,14,6,24,43,23,7,26,31,28,22,3,36,35,20,2,29,16,50,21,34,30,39,10,49,9,5,38,11,32,1,8,48,27,46,12]},{"route":[46,27,48,6,14,25,24,43,23,7,26,31,8,1,32,11,38,16,2,22,28,36,35,3,20,29,21,50,9,34,30,39,10,49,5,37,15,33,45,44,42,40,13,41,19,17,12,47,4,18]},{"route":[6,48,8,31,26,23,7,43,24,14,25,18,4,13,41,40,19,42,44,45,33,15,37,17,47,12,5,49,10,39,30,50,34,21,29,2,16,9,38,11,32,22,28,3,36,35,20,1,27,46]},{"route":[6,14,25,24,43,23,7,48,27,32,1,22,8,26,31,28,3,36,35,20,2,11,38,16,29,21,50,34,30,39,10,9,49,5,12,37,15,33,45,44,42,40,13,41,19,17,4,18,47,46]},{"route":[27,6,14,25,24,43,7,23,48,8,26,31,28,3,36,35,20,22,1,32,11,2,29,21,16,9,50,34,30,39,10,49,38,5,33,45,15,44,42,19,40,41,13,37,17,4,18,47,12,46]},{"route":[46,6,24,43,23,7,26,8,48,27,1,32,11,38,9,16,2,22,3,28,31,36,35,20,29,21,50,34,30,49,5,10,39,33,15,45,44,42,19,40,41,13,37,17,12,47,4,18,25,14]},{"route":[27,48,8,26,31,28,3,36,35,20,22,1,32,11,38,16,50,2,29,21,34,30,39,10,9,49,5,37,15,33,45,44,17,12,47,4,18,41,19,42,40,13,25,14,24,43,23,7,6,46]},{"route":[27,6,14,25,24,43,23,7,48,8,26,31,28,3,36,35,20,29,21,34,30,39,10,49,9,50,16,38,5,11,2,1,22,32,12,17,37,15,33,45,44,42,19,40,41,13,4,18,47,46]},{"route":[27,6,48,23,24,43,7,8,26,31,28,3,36,35,20,1,22,2,29,16,50,21,34,30,39,10,49,9,38,11,32,46,12,5,33,45,15,44,37,17,4,18,41,19,42,40,13,25,14,47]},{"route":[47,14,25,13,40,42,19,41,18,4,17,44,45,33,15,37,5,9,50,49,10,39,30,34,21,29,2,16,38,11,12,46,32,1,22,20,35,36,3,28,31,26,8,48,7,23,43,24,6,27]},{"route":[46,38,11,9,50,16,2,32,1,22,3,36,35,20,29,21,34,30,39,10,49,5,12,37,15,33,45,44,42,40,19,41,13,17,4,18,47,25,14,6,24,43,23,7,26,31,28,8,48,27]},{"route":[27,6,23,24,43,7,48,26,31,8,22,1,32,11,38,9,50,16,2,3,28,36,35,20,29,21,34,30,39,10,49,5,46,12,37,15,33,45,44,42,40,19,17,4,41,13,25,14,18,47]},{"route":[46,12,37,15,33,45,44,17,4,18,47,42,19,40,41,13,25,14,6,24,43,23,7,26,31,8,48,27,32,1,22,28,3,36,35,20,2,11,38,9,16,29,21,50,34,30,39,10,49,5]},{"route":[46,47,18,4,13,41,40,19,42,17,44,45,33,15,37,12,5,49,38,11,32,16,50,9,10,39,30,34,21,29,2,20,35,36,3,22,28,31,26,8,7,23,43,24,25,14,48,1,27,6]}];
 
     // Calcula melhor rota pelo PSO
     var best = pso(bench, population, params);
@@ -652,10 +748,20 @@ function batteryTests(bench, params) {
         
     for (var i = 0; i < params.testsQtd; i++) {
         
+        // Guarda instante inicial da execução
+        var beginTime = new Date().getTime();
+
+        // PSO híbrido
         var best = hybPSO(bench, params);
 
-        if (best.fitness < bestOfBests.fitness)
+        // Calcula tempo decorrido na execução do algoritmo
+        var endTime = new Date().getTime();
+        var time = new Date(endTime - beginTime);
+
+        if (best.fitness < bestOfBests.fitness) {
             bestOfBests = best;
+            bestOfBests.time = time;
+        }
     }
 
     return bestOfBests;
@@ -689,9 +795,9 @@ function init(benchmark) {
         //     }
         // }
         
-
+        
         insertDepotReturns(bench, bestOfBests.routeDiscrete);
-        plotGraph(bench, bestOfBests.routeDiscrete);
+        plotGraph(bench, bestOfBests);
     });
 }
 
@@ -734,13 +840,22 @@ function tmpEvaluateFitness(bench, route) {
     return distance;
 }
 
-function plotGraph(bench, routeWithoutDepots) {
+function plotGraph(bench, best) {
 
-    var route = insertDepotReturns(bench, routeWithoutDepots);
+    var route = insertDepotReturns(bench, best.routeDiscrete);
     var distance = tmpEvaluateFitness(bench, route);
 
-    console.log("Rota: " + route);
-    console.log("Distância: " + distance);
+    // console.log("Rota: " + route);
+    // console.log("Distância: " + distance);
+    
+    var time = best.time;
+    // Mostra tempo decorrido no teste no console
+    console.log("Distância: " + distance, "Tempo: " +
+        time.getUTCHours() + " h " +
+        time.getMinutes() + " m " +
+        time.getSeconds() + "." +
+        time.getMilliseconds() + " s"
+    );
 
     document.getElementById("distance").innerText = distance;
     document.getElementById("output").style.visibility = "visible";
