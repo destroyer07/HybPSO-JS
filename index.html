@@ -24,7 +24,29 @@
 
 <body>
 
-    <!-- Combo box de escolha do benchmark -->
+    <!-- Parâmetros de entrada -->
+
+    Quantidade de partículas:<br/>
+    <input id="particles" value="20"><br/><br/>
+
+    Quantidade de gerações:<br/>
+    <input id="generations" value="100"><br/><br/>
+
+    Constantes do PSO:<br/>
+    C1: <input id="c1" value="2">
+    C2: <input id="c2" value="2"><br/><br/>
+
+    Limites de w no PSO:<br/>
+    Mínimo: <input id="wMin" value="0.1">
+    Máximo: <input id="wMax" value="0.9"><br/><br/>
+
+    Tamanho do RCL:<br/>
+    <input id="rclD" value="50"><br/><br/>
+
+    Quantidade de testes:<br/>
+    <input id="testsQtd" value="1"><br/><br/>
+
+    Arquivo de benchmark:<br/>
     <select id="benchmarkNum">
         <option value="1">1</option>
         <option value="2">2</option>
@@ -43,8 +65,10 @@
         <option value="1_">1 reduzido (5)</option>
     </select>
 
+    <br/><br/>
+
     <!-- Botão que inicia a busca -->
-    <button onclick="init(document.getElementById('benchmarkNum').value)">Procura</button>
+    <button onclick="init(document.getElementById('benchmarkNum').value)">Executar</button>
 
     <!-- Campos de saída -->
     <div id="output">

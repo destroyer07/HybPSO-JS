@@ -6,18 +6,21 @@
  * Lê parâmetros de entrada
  */
 function readParams() {
+
     return {
         swarms: 1,
-        particles: 20,
-        generations: 100,
-        c1: 2,
-        c2: 2,
-        wMin: 0.0,
-        wMax: 1,
-        rclD: 50,
-        testsQtd: 1
+        particles: parseInt(document.getElementById("particles").value),
+        generations: parseInt(document.getElementById("generations").value),
+        c1: parseFloat(document.getElementById("c1").value),
+        c2: parseFloat(document.getElementById("c2").value),
+        wMin: parseFloat(document.getElementById("wMin").value),
+        wMax: parseFloat(document.getElementById("wMax").value),
+        rclD: parseInt(document.getElementById("rclD").value),
+        testsQtd: parseInt(document.getElementById("testsQtd").value),
     };
 }
+
+readParams();
 
 /**
  * PSO híbrido
