@@ -24,6 +24,7 @@
 
 <body>
 
+    <!-- Combo box de escolha do benchmark -->
     <select id="benchmarkNum">
         <option value="1">1</option>
         <option value="2">2</option>
@@ -42,13 +43,26 @@
         <option value="1_">1 reduzido (5)</option>
     </select>
 
+    <!-- Botão que inicia a busca -->
     <button onclick="init(document.getElementById('benchmarkNum').value)">Procura</button>
+
+    <!-- Campos de saída -->
     <div id="output">
+        <!-- Distância da menor rota encontrada -->
         Distância: <span id="distance"></span>
+        
+        <!-- Gráfico da menor rota encontrada -->
         <div id="animatedshapes_div"></div>
     </div>
 
+        <!-- Importações dos scripts JavaScript -->
         <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script src="./js/general.js"></script>
+        <script src="./js/route.js"></script>
+        <script src="./js/benchmark.js"></script>
+        <script src="./js/mpnsGrasp.js"></script>
+        <script src="./js/pso.js"></script>
+        <script src="./js/graph.js"></script>
         <script src="./js/hybpso.js"></script>
 </body>
 
