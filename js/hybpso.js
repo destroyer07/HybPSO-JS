@@ -20,8 +20,6 @@ function readParams() {
     };
 }
 
-readParams();
-
 /**
  * PSO híbrido
  * @param {*} bench 
